@@ -147,6 +147,14 @@ parser.add_argument(
     help='Set csv.field_size_limit(VALUE)'
 )
 
+parser.add_argument(
+    '--delay',
+    default=None,
+    type=float,
+    help='Use a fixed delay between messages for replay playback'
+)
+
+
 def wait_for_keyboard_interrupt():
     try:
         while True:
@@ -182,7 +190,7 @@ def main():
         recorder.stop_recording()
     elif args.mode == 'replay':
         try:
-            recorder.start_replay(args.loop)
+            recorder.start_replay(args.loop, args.delay)
         except KeyboardInterrupt:
             pass
     else:

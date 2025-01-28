@@ -67,19 +67,23 @@ class MqttRecorder:
             self.__client.subscribe('#', qos=qos)
         self.__recording = True
 
-    def start_replay(self, loop: bool):
+    def start_replay(self, loop: bool, delay: float=None):
         def decode_payload(payload, encode_b64):
             return base64.b64decode(payload) if encode_b64 else payload
+
+        logger.info(f"{self.__file_name}: counting lines")
+        with open(self.__file_name, newline='') as csvfile:
+            csv_lines = sum(1 for line in csvfile)
+            logger.info(f"{self.__file_name}: {csv_lines} lines")
 
         with open(self.__file_name, newline='') as csvfile:
             logger.info('Starting replay')
             first_message = True
             reader = csv.reader(csvfile)
-            messages = list(reader)
             while True:
-                for row in tqdm(messages, desc='MQTT REPLAY'):
+                for row in tqdm(reader, total=csv_lines, desc='MQTT REPLAY'):
                     if not first_message:
-                        time.sleep(float(row[5]))
+                        time.sleep(delay or float(row[5]))
                     else:
                         first_message = False
                     mqtt_payload = decode_payload(row[1], self.__encode_b64)
@@ -92,7 +96,6 @@ class MqttRecorder:
                     time.sleep(1)
                 else:
                     break
-
 
     def stop_recording(self):
         self.__client.loop_stop()
