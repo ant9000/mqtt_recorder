@@ -6,9 +6,10 @@ import time
 import base64
 import csv
 from tqdm import tqdm
-import evdev
-from evdev import InputDevice, categorize, ecodes
-from evdev.ecodes import KEY_RIGHT, KEY_LEFT, KEY_ENTER
+try:
+    from evdev import InputDevice, categorize, ecodes
+except:
+    pass
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -106,11 +107,11 @@ class MqttRecorder:
                         time.sleep(delay or float(row[5]))
                         if kbd:
                             keys = kbd.active_keys()
-                            if evdev.ecodes.KEY_S in keys:
+                            if ecodes.KEY_S in keys:
                                 print("Paused - Navigation Mode")
                                 while True:
                                     keys = kbd.active_keys()
-                                    if evdev.ecodes.KEY_RIGHT in keys: # Right arrow to move forward
+                                    if ecodes.KEY_RIGHT in keys: # Right arrow to move forward
                                         if current_row_index < len(rows) - 1:
                                             current_row_index += 1
                                             print(f"Moving to row {current_row_index + 1}")
@@ -120,7 +121,7 @@ class MqttRecorder:
                                             self.__client.publish(topic=row[0], payload=mqtt_payload,
                                                     qos=int(row[2]), retain=retain)
                                         time.sleep(0.2) # Prevent multiple keypresses
-                                    elif evdev.ecodes.KEY_LEFT in keys: # Left arrow to move backward
+                                    elif ecodes.KEY_LEFT in keys: # Left arrow to move backward
                                         if current_row_index > 0:
                                             current_row_index -= 1
                                             row = rows[current_row_index]
@@ -130,7 +131,7 @@ class MqttRecorder:
                                                     qos=int(row[2]), retain=retain)
                                             print(f"Moving to row {current_row_index + 1}")
                                         time.sleep(0.2) # Prevent multiple keypresses
-                                    elif evdev.ecodes.KEY_ENTER in keys: # Enter to resume
+                                    elif ecodes.KEY_ENTER in keys: # Enter to resume
                                         print("Resuming replay")
                                         break
                                     time.sleep(0.1) # Reduce CPU usage
