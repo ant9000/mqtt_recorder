@@ -11,7 +11,7 @@ from evdev import InputDevice, categorize, ecodes
 from evdev.ecodes import KEY_RIGHT, KEY_LEFT, KEY_ENTER
 
 logging.basicConfig(
-    level=logging.DEBUG, 
+    level=logging.DEBUG,
     format='[%(asctime)s] - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger('MQTTRecorder')
@@ -71,8 +71,16 @@ class MqttRecorder:
         self.__recording = True
 
     def start_replay(self, loop: bool, delay: float=None):
-        print("S stops play, then arrows Right and Left navigate through records, ENTER resumes play")
-        dev = InputDevice('/dev/input/event0')
+        kbd = None
+        try:
+            kbd = InputDevice('/dev/input/event0')
+            print("S stops play, then arrows Right and Left navigate through records, ENTER resumes play")
+        except PermissionError as e:
+            print("ERROR: '%s' - keyboard navigation disabled" % e)
+            print("Make sure you have read permissions on /dev/input/event0")
+        except Exception as e:
+            print("ERROR: '%s' - keyboard navigation disabled" % e)
+
         def decode_payload(payload, encode_b64):
             return base64.b64decode(payload) if encode_b64 else payload
 
@@ -88,43 +96,44 @@ class MqttRecorder:
             # Convert reader to list for random access
             rows = list(reader)
             current_row_index = 0
-            
+
             while True:
                 while current_row_index < len(rows):
                     row = rows[current_row_index]
                     tqdm.write(f'Processing row {current_row_index + 1}/{len(rows)}')
-                    
+
                     if not first_message:
                         time.sleep(delay or float(row[5]))
-                        keys = dev.active_keys()
-                        if evdev.ecodes.KEY_S in keys:
-                            print("Paused - Navigation Mode")
-                            while True:
-                                keys = dev.active_keys()
-                                if evdev.ecodes.KEY_RIGHT in keys: # Right arrow to move forward
-                                    if current_row_index < len(rows) - 1:
-                                        current_row_index += 1
-                                        print(f"Moving to row {current_row_index + 1}")
-                                        row = rows[current_row_index]
-                                        mqtt_payload = decode_payload(row[1], self.__encode_b64)
-                                        retain = False if row[3] == 'False' else True
-                                        self.__client.publish(topic=row[0], payload=mqtt_payload,
-                                                qos=int(row[2]), retain=retain)
-                                    time.sleep(0.2) # Prevent multiple keypresses
-                                elif evdev.ecodes.KEY_LEFT in keys: # Left arrow to move backward
-                                    if current_row_index > 0:
-                                        current_row_index -= 1
-                                        row = rows[current_row_index]
-                                        mqtt_payload = decode_payload(row[1], self.__encode_b64)
-                                        retain = False if row[3] == 'False' else True
-                                        self.__client.publish(topic=row[0], payload=mqtt_payload,
-                                                qos=int(row[2]), retain=retain)  
-                                        print(f"Moving to row {current_row_index + 1}")
-                                    time.sleep(0.2) # Prevent multiple keypresses
-                                elif evdev.ecodes.KEY_ENTER in keys: # Enter to resume
-                                    print("Resuming replay")
-                                    break
-                                time.sleep(0.1) # Reduce CPU usage
+                        if kbd:
+                            keys = kbd.active_keys()
+                            if evdev.ecodes.KEY_S in keys:
+                                print("Paused - Navigation Mode")
+                                while True:
+                                    keys = kbd.active_keys()
+                                    if evdev.ecodes.KEY_RIGHT in keys: # Right arrow to move forward
+                                        if current_row_index < len(rows) - 1:
+                                            current_row_index += 1
+                                            print(f"Moving to row {current_row_index + 1}")
+                                            row = rows[current_row_index]
+                                            mqtt_payload = decode_payload(row[1], self.__encode_b64)
+                                            retain = False if row[3] == 'False' else True
+                                            self.__client.publish(topic=row[0], payload=mqtt_payload,
+                                                    qos=int(row[2]), retain=retain)
+                                        time.sleep(0.2) # Prevent multiple keypresses
+                                    elif evdev.ecodes.KEY_LEFT in keys: # Left arrow to move backward
+                                        if current_row_index > 0:
+                                            current_row_index -= 1
+                                            row = rows[current_row_index]
+                                            mqtt_payload = decode_payload(row[1], self.__encode_b64)
+                                            retain = False if row[3] == 'False' else True
+                                            self.__client.publish(topic=row[0], payload=mqtt_payload,
+                                                    qos=int(row[2]), retain=retain)
+                                            print(f"Moving to row {current_row_index + 1}")
+                                        time.sleep(0.2) # Prevent multiple keypresses
+                                    elif evdev.ecodes.KEY_ENTER in keys: # Enter to resume
+                                        print("Resuming replay")
+                                        break
+                                    time.sleep(0.1) # Reduce CPU usage
                     else:
                         first_message = False
                     mqtt_payload = decode_payload(row[1], self.__encode_b64)
