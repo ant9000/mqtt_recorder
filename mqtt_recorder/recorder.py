@@ -6,7 +6,7 @@ import time
 import base64
 import csv
 from tqdm import tqdm
-from .keyboard import *
+from .keyboard import getch
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -94,34 +94,33 @@ class MqttRecorder:
 
                     if not first_message:
                         time.sleep(delay or float(row[5]))
-                        with NonBlockingInput():
-                            key = sys.stdin.read(1)
-                            if key == "s":
-                                print("Paused - Navigation Mode")
-                                while True:
-                                    key = sys.stdin.read(3)
-                                    if key == keys.RIGHT: # Right arrow to move forward
-                                        if current_row_index < len(rows) - 1:
-                                            current_row_index += 1
-                                            print(f"Moving to row {current_row_index + 1}")
-                                            row = rows[current_row_index]
-                                            mqtt_payload = decode_payload(row[1], self.__encode_b64)
-                                            retain = False if row[3] == 'False' else True
-                                            self.__client.publish(topic=row[0], payload=mqtt_payload,
-                                                    qos=int(row[2]), retain=retain)
-                                    elif key == keys.LEFT: # Left arrow to move backward
-                                        if current_row_index > 0:
-                                            current_row_index -= 1
-                                            row = rows[current_row_index]
-                                            mqtt_payload = decode_payload(row[1], self.__encode_b64)
-                                            retain = False if row[3] == 'False' else True
-                                            self.__client.publish(topic=row[0], payload=mqtt_payload,
-                                                    qos=int(row[2]), retain=retain)
-                                            print(f"Moving to row {current_row_index + 1}")
-                                    elif key == keys.ENTER: # Enter to resume
-                                        print("Resuming replay")
-                                        break
-                                    time.sleep(.1) # Reduce CPU usage
+                        key = getch()
+                        if key == "s":
+                            print("Paused - Navigation Mode")
+                            while True:
+                                key = getch()
+                                if key == "RIGHT": # Right arrow to move forward
+                                    if current_row_index < len(rows) - 1:
+                                        current_row_index += 1
+                                        print(f"Moving to row {current_row_index + 1}")
+                                        row = rows[current_row_index]
+                                        mqtt_payload = decode_payload(row[1], self.__encode_b64)
+                                        retain = False if row[3] == 'False' else True
+                                        self.__client.publish(topic=row[0], payload=mqtt_payload,
+                                                qos=int(row[2]), retain=retain)
+                                elif key == "LEFT": # Left arrow to move backward
+                                    if current_row_index > 0:
+                                        current_row_index -= 1
+                                        row = rows[current_row_index]
+                                        mqtt_payload = decode_payload(row[1], self.__encode_b64)
+                                        retain = False if row[3] == 'False' else True
+                                        self.__client.publish(topic=row[0], payload=mqtt_payload,
+                                                qos=int(row[2]), retain=retain)
+                                        print(f"Moving to row {current_row_index + 1}")
+                                elif key == "ENTER": # Enter to resume
+                                    print("Resuming replay")
+                                    break
+                                time.sleep(.1) # Reduce CPU usage
                     else:
                         first_message = False
                     mqtt_payload = decode_payload(row[1], self.__encode_b64)

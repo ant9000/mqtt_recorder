@@ -1,35 +1,52 @@
-import fcntl
-import termios
-import sys
-import os
-import time
-
-class keys:
-    LEFT = "\x1b[D"
-    RIGHT = "\x1b[C"
-    ENTER = "\n"
-
-class NonBlockingInput(object):
-
-    def __enter__(self):
-        # canonical mode, no echo
-        self.old = termios.tcgetattr(sys.stdin)
-        new = termios.tcgetattr(sys.stdin)
-        new[3] = new[3] & ~(termios.ICANON | termios.ECHO)
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, new)
-
-        # set for non-blocking io
-        self.orig_fl = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
-        fcntl.fcntl(sys.stdin, fcntl.F_SETFL, self.orig_fl | os.O_NONBLOCK)
-
-    def __exit__(self, *args):
-        # restore terminal to previous state
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.old)
-        fcntl.fcntl(sys.stdin, fcntl.F_SETFL, self.orig_fl)
+try:
+    import msvcrt
+    import codecs
+    from ctypes import windll
+    __CODEPAGE__ = "cp%d" % windll.kernel32.GetConsoleOutputCP()
+    __KEYS__ = {
+            b"\xe0K": "LEFT",
+            b"\xe0M": "RIGHT",
+            b"\xe0H": "UP",
+            b"\xe0P": "DOWN",
+            " ": "SPACE",
+            "\r": "ENTER",
+    }
+    def getch():
+        if msvcrt.kbhit():
+            k = msvcrt.getch()
+            if ord(k) in [0x00, 0xe0]:
+                k += msvcrt.getch()
+            else:
+                k = codecs.decode(k, encoding=__CODEPAGE__)
+            return __KEYS__.get(k, k)
+except:
+    import sys
+    import select
+    import tty
+    import termios
+    import atexit
+    __KEYS__ = {
+            "\x1b[D": "LEFT",
+            "\x1b[C": "RIGHT",
+            "\x1b[A": "UP",
+            "\x1b[B": "DOWN",
+            " ": "SPACE",
+            "\n": "ENTER",
+    }
+    def getch():
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            k = sys.stdin.read(1)
+            if k == "\x1b":
+                k += sys.stdin.read(2)
+            return __KEYS__.get(k, k)
+    def restore_settings():
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+    old_settings = termios.tcgetattr(sys.stdin)
+    atexit.register(restore_settings)
+    tty.setcbreak(sys.stdin.fileno())
 
 if __name__ == "__main__":
-    with NonBlockingInput():
-        while True:
-            c = sys.stdin.read(3)
-            print('tick', repr(c))
-            time.sleep(0.1)
+    while True:
+        k = getch()
+        if k is not None:
+            print(k)
