@@ -8,6 +8,9 @@ try:
             b"\xe0M": "RIGHT",
             b"\xe0H": "UP",
             b"\xe0P": "DOWN",
+            "\x1b": "ESC",
+            "\t": "TAB",
+            "\x1b": "ESC",
             " ": "SPACE",
             "\r": "ENTER",
     }
@@ -20,6 +23,7 @@ try:
                 k = codecs.decode(k, encoding=__CODEPAGE__)
             return __KEYS__.get(k, k)
 except:
+    import os
     import sys
     import select
     import tty
@@ -30,14 +34,15 @@ except:
             "\x1b[C": "RIGHT",
             "\x1b[A": "UP",
             "\x1b[B": "DOWN",
+            "\x1b": "ESC",
+            "\t": "TAB",
             " ": "SPACE",
             "\n": "ENTER",
     }
     def getch():
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-            k = sys.stdin.read(1)
-            if k == "\x1b":
-                k += sys.stdin.read(2)
+            # read up to 3 chars (arrows are represented as an escape sequence)
+            k = os.read(sys.stdin.fileno(),3).decode(sys.stdin.encoding)
             return __KEYS__.get(k, k)
     def restore_settings():
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
@@ -46,7 +51,10 @@ except:
     tty.setcbreak(sys.stdin.fileno())
 
 if __name__ == "__main__":
-    while True:
-        k = getch()
-        if k is not None:
-            print(k)
+    try:
+        while True:
+            k = getch()
+            if k is not None:
+                print(k)
+    except KeyboardInterrupt:
+        pass
