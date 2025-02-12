@@ -69,7 +69,7 @@ class MqttRecorder:
         self.__recording = True
 
     def start_replay(self, loop: bool, delay: float=None):
-        print("S stops play, then arrows Right and Left navigate through records, ENTER resumes play")
+        print("Space to pause replay; arrows to navigate through records; space again to resume")
 
         def decode_payload(payload, encode_b64):
             return base64.b64decode(payload) if encode_b64 else payload
@@ -95,11 +95,11 @@ class MqttRecorder:
                     if not first_message:
                         time.sleep(delay or float(row[5]))
                         key = getch()
-                        if key == "s":
+                        if key == "SPACE":
                             print("Paused - Navigation Mode")
                             while True:
                                 key = getch()
-                                if key == "RIGHT": # Right arrow to move forward
+                                if key in ["RIGHT", "DOWN"]: # Right or down arrow to move forward
                                     if current_row_index < len(rows) - 1:
                                         current_row_index += 1
                                         print(f"Moving to row {current_row_index + 1}")
@@ -108,7 +108,7 @@ class MqttRecorder:
                                         retain = False if row[3] == 'False' else True
                                         self.__client.publish(topic=row[0], payload=mqtt_payload,
                                                 qos=int(row[2]), retain=retain)
-                                elif key == "LEFT": # Left arrow to move backward
+                                elif key in ["LEFT", "UP"]: # Left or up arrow to move backward
                                     if current_row_index > 0:
                                         current_row_index -= 1
                                         row = rows[current_row_index]
@@ -117,7 +117,7 @@ class MqttRecorder:
                                         self.__client.publish(topic=row[0], payload=mqtt_payload,
                                                 qos=int(row[2]), retain=retain)
                                         print(f"Moving to row {current_row_index + 1}")
-                                elif key == "ENTER": # Enter to resume
+                                elif key == "SPACE":
                                     print("Resuming replay")
                                     break
                                 time.sleep(.1) # Reduce CPU usage

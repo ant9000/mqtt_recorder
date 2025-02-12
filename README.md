@@ -2,12 +2,11 @@
 
 Simple cli tool for recording and replaying MQTT messages.
 Added custom delay between MQTT messages
-Added navigation through MQTT messages pressing "S" during play then arrows
+Added navigation through MQTT messages: press space to pause/resume, arrows to navigate
 
 # Install
-from mqtt_recorder directory
 
-`pip install .`
+`pip install git+https://github.com/ant9000/mqtt_recorder.git`
 
 ## Usage
 | Argument               | Description                                              | Required | Default  |
@@ -17,7 +16,7 @@ from mqtt_recorder directory
 | --port                 | MQTT broker port                                         |          | 1883     |
 | --client_id            | MQTT Client ID                                           |          |          |
 | --mode                 | mode: record/replay                                      | x        |          |
-| --file                 | output/input csv file                                    | x        |          | 
+| --file                 | output/input csv file                                    | x        |          |
 | --loop                 | looping replay                                           |          | false    |
 | --qos                  | Quality of Service that will be used for subscriptions   |          | 0        |
 | --topics               | json file containing selected topics for subscriptions   |          | null     |
